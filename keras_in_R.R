@@ -91,9 +91,9 @@ Y_train <- to_categorical(Y_train, 10)
 # These will be followed on the top output layer of 10 nodes and a final
 # softmax activation. 
 
-mod <- keras_model_sequential() 
+model <- keras_model_sequential() 
 
-mod %>% 
+model %>% 
   layer_dense(units = 512, input_shape = dim(X_train)[2]) %>%
   layer_activation_leaky_relu() %>%
   layer_dropout(rate = 0.25) %>% 
@@ -107,19 +107,19 @@ mod %>%
   layer_activation(activation = 'softmax')
 
 # compile the model with the “categorical_crossentropy” loss and 
-mod %>% 
+model %>% 
   compile(loss = 'categorical_crossentropy',
           optimizer = optimizer_rmsprop())
 
 # fit it on the training data
-mod %>%
+model %>%
   fit(X_train, Y_train, batch_size = 32, epochs = 5, verbose = 1,
           validation_split = 0.1)
 
 # make predictions
 # instead of 10 columns in output we can get vector of [0-9]
 Y_test_hat <- 
-mod %>%
+model %>%
   predict_classes(X_test)
 # cofuson matrix
 table(Y_test, Y_test_hat)
@@ -195,18 +195,150 @@ model %>% evaluate(x_test, y_test)
 model %>% predict_classes(x_test)
 
 
-#------------------- BOSTON dataset --------------------------#
-# Dataset concerning housing in the area of Boston
-# Price of a home is to be predicted
-boston <- dataset_boston_housing() # dataset from keras library
+#------------------- MNIST dataset III --------------------------#
+#------------- Convolutional Neural Networks --------------------#
+# To begin, we load the MNIST dataset again
+mnist <- dataset_mnist()
+X_train <- mnist$train$x
+X_test  <- mnist$test$x
+# add dimension which represents a “gray” channel and scale to [0,1]
+X_train <- 
+  array(X_train, dim = c(dim(X_train), 1)) / 255
+X_test <- 
+  array(X_test , dim = c(dim(X_test), 1)) / 255
+# extract target variable
+Y_train <- mnist$train$y
+Y_test  <- mnist$test$y
+# one hot-bit representation
+Y_train <- to_categorical(Y_train, 10)
 
-X_train <- boston$train$x
-Y_train <- boston$train$y
-X_test  <- boston$test$x
-Y_test  <- boston$test$y
-# scale and center the columns of a numeric matrix
-X_train <- scale(X_train)
-X_test <- scale(X_test)
 
-# construct an empty Sequential model (composed of a linear stack of layers)
+# build a CNN model by using the convolution specific Conv2D and MaxPooling layers
 model <- keras_model_sequential() 
+model %>% 
+  layer_conv_2d(filters = 32, kernel_size = c(3, 3),
+                input_shape = c(28, 28, 1)) %>%
+  layer_activation(activation = 'relu') %>% 
+  layer_conv_2d(filters = 32, kernel_size = c(3, 3),
+                input_shape = c(28, 28, 1)) %>%
+  layer_activation(activation = 'relu') %>%
+  layer_max_pooling_2d(pool_size=c(2, 2)) %>% 
+  layer_dropout(rate = 0.25) %>%
+  layer_flatten() %>%
+  layer_dense(128) %>%
+  layer_activation(activation = 'relu') %>% 
+  layer_dropout(rate = 0.25) %>%
+  layer_dense(10) %>%
+  layer_activation(activation = 'softmax')
+  
+# compile the model and fit it to the data
+model %>% compile(
+  loss = 'categorical_crossentropy',
+  optimizer = optimizer_rmsprop())
+
+model %>% fit(X_train, Y_train, batch_size = 32, epochs = 5,
+              verbose = 1, validation_split = 0.1)
+
+# evaluate the model
+Y_test_hat <- model %>%
+    predict_classes(X_test)
+# cofuson matrix
+table(Y_test, Y_test_hat)
+# accuracy
+mean(Y_test == Y_test_hat)
+# 0.98
+
+#------------------- IMDB dataset I ------------------------#
+#------------- Recurrent Neural Networks (RNN) -------------#
+# predict whether a movie review is generally positive (1) or negative (0).
+# To begin, we load the IMDB dataset
+require('keras')
+imdb <- dataset_imdb()
+X_train <- imdb$train$x
+X_test  <- imdb$test$x
+Y_train <- imdb$train$y
+Y_test <- imdb$test$y
+
+# pad each sequence to the same length (100 words)
+X_train <- pad_sequences(X_train, maxlen = 100)
+X_test  <- pad_sequences(X_test, maxlen = 100)
+# build a RNN model by using the Embedding layer
+# This maps each word index in X_train into a 500 dimensional space
+model <- keras_model_sequential() 
+model %>% 
+  layer_embedding(input_dim = 89000, # size of the vocabulary
+                  output_dim = 500,      # dim of the dense embeding
+                  input_length = 100) %>%
+# length of input sequences
+                  # embeddings_regularizer = c(100)) 
+
+  layer_dropout(rate = 0.25) %>%
+  layer_flatten() %>%
+  layer_dense(256) %>%  
+  layer_dropout(rate = 0.25) %>%
+  layer_activation(activation = 'relu') %>% 
+  layer_dense(1) %>%
+  layer_activation(activation = 'sigmoid')
+
+# compile the model and fit it to the data
+model %>% compile(
+  loss = 'binary_crossentropy', # binary_crossentropy coz 2 classes 
+  optimizer = optimizer_rmsprop(lr = 0.00025)) # learning rate not to overfit
+
+model %>% fit(X_train, Y_train, batch_size = 32, epochs = 10,
+              verbose = 1, validation_split = 0.1)
+# evaluate the model
+Y_test_hat <- model %>%
+  predict_classes(X_test)
+# cofuson matrix
+table(Y_test, Y_test_hat)
+# accuracy
+mean(Y_test == Y_test_hat)
+# 0.98
+
+
+#------------------- IMDB dataset II -----------------------#
+#------------- Recurrent Neural Networks (RNN) -------------#
+#----------- Long-Short Term Memory Unit (LSTM) ------------#
+# predict whether a movie review is generally positive (1) or negative (0).
+# To begin, we load the IMDB dataset
+require('keras')
+imdb <- dataset_imdb()
+X_train <- imdb$train$x
+X_test  <- imdb$test$x
+Y_train <- imdb$train$y
+Y_test <- imdb$test$y
+
+# pad each sequence to the same length (100 words)
+X_train <- pad_sequences(X_train, maxlen = 100)
+X_test  <- pad_sequences(X_test, maxlen = 100)
+# build a RNN model by using the Embedding layer
+# This maps each word index in X_train into a 500 dimensional space
+model <- keras_model_sequential() 
+model %>% 
+  layer_embedding(input_dim = 89000, # size of the vocabulary
+                  output_dim = 500,      # dim of the dense embeding
+                  input_length = 100) %>%
+  layer_dropout(rate = 0.25) %>%
+  layer_flatten() %>%
+  layer_dense(256) %>%  
+  layer_dropout(rate = 0.25) %>%
+  layer_activation(activation = 'relu') %>% 
+  layer_dense(1) %>%
+  layer_activation(activation = 'sigmoid')
+
+# compile the model and fit it to the data
+model %>% compile(
+  loss = 'binary_crossentropy', # binary_crossentropy coz 2 classes 
+  optimizer = optimizer_rmsprop(lr = 0.00025)) # learning rate not to overfit
+
+model %>% fit(X_train, Y_train, batch_size = 32, epochs = 10,
+              verbose = 1, validation_split = 0.1)
+# evaluate the model
+Y_test_hat <- model %>%
+  predict_classes(X_test)
+# cofuson matrix
+table(Y_test, Y_test_hat)
+# accuracy
+mean(Y_test == Y_test_hat)
+# 0.98

@@ -1,2 +1,3 @@
 # Learning-Deep-Learning
-Keras, Tensorflow, R, Python - LDL
+Keras, TensorFlow, R, Python - LDL
+Kaggle competitions
